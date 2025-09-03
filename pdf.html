@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>布料统计管理系统</title>
+    
+    <!-- PWA支持 -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="布料统计">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMyMTk2RjMiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTIiIGhlaWdodD0iMTIiPgo8cGF0aCBkPSJNMiAySDEwVjEwSDJWMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xMiAySDIwVjEwSDEyVjJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMiAxMkgxMFYyMEgyVjEyWiIgZmlsbD0id2hpdGUiLz4KPHN2Zz4KPC9zdmc+Cjwvc3ZnPgo8L3N2Zz4K">
+    
+    <!-- 跨浏览器兼容性 -->
+    <meta name="msapplication-TileColor" content="#2196F3">
+    <meta name="msapplication-config" content="none">
+    
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <h1><i class="fas fa-cut"></i> 布料统计管理系统</h1>
+            <p>智能化布料库存管理与统计分析</p>
+        </header>
+
+        <!-- 导航标签 -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="inventory">库存管理</button>
+            <button class="tab-btn" data-tab="outbound">出库管理</button>
+        </nav>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 库存管理区域 -->
+            <!-- 左侧：录入表单 -->
+            <section class="input-section">
+                <div class="card">
+                    <h2><i class="fas fa-plus-circle"></i> 添加布料</h2>
+                    <form id="fabricForm" class="fabric-form">
+                        <div class="form-group">
+                            <label for="fabricName">布料名称</label>
+                            <input type="text" id="fabricName" name="fabricName" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fabricType">布料类型</label>
+                                <select id="fabricType" name="fabricType" required>
+                                    <option value="">请选择类型</option>
+                                    <option value="棉布">棉布</option>
+                                    <option value="丝绸">丝绸</option>
+                                    <option value="麻布">麻布</option>
+                                    <option value="毛料">毛料</option>
+                                    <option value="化纤">化纤</option>
+                                    <option value="混纺">混纺</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="fabricColor">颜色</label>
+                                <input type="text" id="fabricColor" name="fabricColor" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fabricWidth">幅宽 (cm)</label>
+                                <input type="number" id="fabricWidth" name="fabricWidth" min="0" step="0.1" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="fabricLength">长度 (m)</label>
+                                <input type="number" id="fabricLength" name="fabricLength" min="0" step="0.1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="fabricPrice">单价 (元/米)</label>
+                                <input type="number" id="fabricPrice" name="fabricPrice" min="0" step="0.01" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="fabricSupplier">供应商</label>
+                                <input type="text" id="fabricSupplier" name="fabricSupplier">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fabricNotes">备注</label>
+                            <textarea id="fabricNotes" name="fabricNotes" rows="3"></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 添加布料
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- 右侧：统计显示 -->
+            <section class="stats-section">
+                <!-- 统计卡片 -->
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalFabrics">0</h3>
+                            <p>总布料数量</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-ruler"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalLength">0</h3>
+                            <p>总长度 (米)</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalValue">¥0</h3>
+                            <p>总价值</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-tags"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalTypes">0</h3>
+                            <p>布料类型</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分类统计 -->
+                <div class="card">
+                    <h2><i class="fas fa-chart-pie"></i> 分类统计</h2>
+                    <div id="categoryStats" class="category-stats">
+                        <!-- 动态生成分类统计 -->
+                    </div>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="card">
+                    <h2><i class="fas fa-tools"></i> 数据操作</h2>
+                    <div class="action-buttons">
+                        <button id="exportBtn" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> 导出数据
+                        </button>
+                        <button id="clearBtn" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 清空数据
+                        </button>
+                        <button id="importBtn" class="btn btn-info">
+                            <i class="fas fa-upload"></i> 导入数据
+                        </button>
+                    </div>
+                    <input type="file" id="importFile" accept=".json" style="display: none;">
+                </div>
+            </section>
+        </div>
+
+            <!-- 出库管理区域 -->
+            <div id="outbound-tab" class="tab-content" style="display: none;">
+                <!-- 左侧：出库表单 -->
+                <section class="input-section">
+                    <div class="card">
+                        <h2><i class="fas fa-shipping-fast"></i> 布料出库</h2>
+                        <form id="outboundForm" class="fabric-form">
+                            <div class="form-group">
+                                <label for="outboundFabric">选择布料</label>
+                                <select id="outboundFabric" name="outboundFabric" required>
+                                    <option value="">请选择要出库的布料</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="outboundLength">出库长度 (m)</label>
+                                    <input type="number" id="outboundLength" name="outboundLength" min="0.1" step="0.1" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="availableLength">可用长度 (m)</label>
+                                    <input type="number" id="availableLength" readonly>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="outboundPurpose">出库用途</label>
+                                    <select id="outboundPurpose" name="outboundPurpose" required>
+                                        <option value="">请选择用途</option>
+                                        <option value="生产">生产</option>
+                                        <option value="销售">销售</option>
+                                        <option value="样品">样品</option>
+                                        <option value="损耗">损耗</option>
+                                        <option value="其他">其他</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="outboundOperator">操作员</label>
+                                    <input type="text" id="outboundOperator" name="outboundOperator" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="outboundNotes">出库备注</label>
+                                <textarea id="outboundNotes" name="outboundNotes" rows="3"></textarea>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check"></i> 确认出库
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- 右侧：出库统计 -->
+                <section class="stats-section">
+                    <!-- 出库统计卡片 -->
+                    <div class="stats-cards">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalOutbounds">0</h3>
+                                <p>总出库次数</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-ruler-horizontal"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalOutboundLength">0</h3>
+                                <p>总出库长度 (米)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="totalOutboundValue">¥0</h3>
+                                <p>总出库价值</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <i class="fas fa-calendar-day"></i>
+                            </div>
+                            <div class="stat-info">
+                                <h3 id="todayOutbounds">0</h3>
+                                <p>今日出库</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 出库用途统计 -->
+                    <div class="card">
+                        <h2><i class="fas fa-chart-bar"></i> 出库用途统计</h2>
+                        <div id="purposeStats" class="category-stats">
+                            <!-- 动态生成用途统计 -->
+                        </div>
+                    </div>
+
+                    <!-- 出库操作按钮 -->
+                    <div class="card">
+                        <h2><i class="fas fa-tools"></i> 出库数据操作</h2>
+                        <div class="action-buttons">
+                            <button id="exportOutboundBtn" class="btn btn-secondary">
+                                <i class="fas fa-download"></i> 导出出库记录
+                            </button>
+                            <button id="clearOutboundBtn" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> 清空出库记录
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- 库存管理标签内容 -->
+        <div id="inventory-tab" class="tab-content">
+
+        <!-- 出库记录列表 -->
+        <section class="outbound-list-section" id="outbound-records" style="display: none;">
+            <div class="card">
+                <div class="list-header">
+                    <h2><i class="fas fa-history"></i> 出库记录</h2>
+                    <div class="search-filter">
+                        <input type="text" id="outboundSearchInput" placeholder="搜索出库记录...">
+                        <select id="filterPurpose">
+                            <option value="">所有用途</option>
+                            <option value="生产">生产</option>
+                            <option value="销售">销售</option>
+                            <option value="样品">样品</option>
+                            <option value="损耗">损耗</option>
+                            <option value="其他">其他</option>
+                        </select>
+                        <input type="date" id="filterDate" title="按日期筛选">
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="outboundTable" class="fabric-table">
+                        <thead>
+                            <tr>
+                                <th>出库时间</th>
+                                <th>布料名称</th>
+                                <th>类型</th>
+                                <th>颜色</th>
+                                <th>出库长度(m)</th>
+                                <th>单价(元/米)</th>
+                                <th>出库价值</th>
+                                <th>用途</th>
+                                <th>操作员</th>
+                                <th>备注</th>
+                            </tr>
+                        </thead>
+                        <tbody id="outboundTableBody">
+                            <!-- 动态生成出库记录列表 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="outboundEmptyState" class="empty-state" style="display: none;">
+                    <i class="fas fa-clipboard-list"></i>
+                    <p>暂无出库记录</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 布料列表 -->
+        <section class="fabric-list-section">
+            <div class="card">
+                <div class="list-header">
+                    <h2><i class="fas fa-list"></i> 布料清单</h2>
+                    <div class="search-filter">
+                        <input type="text" id="searchInput" placeholder="搜索布料...">
+                        <select id="filterType">
+                            <option value="">所有类型</option>
+                            <option value="棉布">棉布</option>
+                            <option value="丝绸">丝绸</option>
+                            <option value="麻布">麻布</option>
+                            <option value="毛料">毛料</option>
+                            <option value="化纤">化纤</option>
+                            <option value="混纺">混纺</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="table-container">
+                    <table id="fabricTable" class="fabric-table">
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>类型</th>
+                                <th>颜色</th>
+                                <th>幅宽(cm)</th>
+                                <th>长度(m)</th>
+                                <th>单价(元/米)</th>
+                                <th>总价值</th>
+                                <th>供应商</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fabricTableBody">
+                            <!-- 动态生成布料列表 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="emptyState" class="empty-state" style="display: none;">
+                    <i class="fas fa-inbox"></i>
+                    <p>暂无布料数据，请添加布料信息</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>编辑布料信息</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="editForm" class="fabric-form">
+                <input type="hidden" id="editId">
+                
+                <div class="form-group">
+                    <label for="editFabricName">布料名称</label>
+                    <input type="text" id="editFabricName" name="fabricName" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editFabricType">布料类型</label>
+                        <select id="editFabricType" name="fabricType" required>
+                            <option value="棉布">棉布</option>
+                            <option value="丝绸">丝绸</option>
+                            <option value="麻布">麻布</option>
+                            <option value="毛料">毛料</option>
+                            <option value="化纤">化纤</option>
+                            <option value="混纺">混纺</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editFabricColor">颜色</label>
+                        <input type="text" id="editFabricColor" name="fabricColor" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editFabricWidth">幅宽 (cm)</label>
+                        <input type="number" id="editFabricWidth" name="fabricWidth" min="0" step="0.1" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editFabricLength">长度 (m)</label>
+                        <input type="number" id="editFabricLength" name="fabricLength" min="0" step="0.1" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="editFabricPrice">单价 (元/米)</label>
+                        <input type="number" id="editFabricPrice" name="fabricPrice" min="0" step="0.01" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="editFabricSupplier">供应商</label>
+                        <input type="text" id="editFabricSupplier" name="fabricSupplier">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editFabricNotes">备注</label>
+                    <textarea id="editFabricNotes" name="fabricNotes" rows="3"></textarea>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelEdit">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    
+    <!-- PWA Service Worker 注册 -->
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+        
+        // PWA安装提示
+        let deferredPrompt;
+        const installButton = document.createElement('button');
+        installButton.textContent = '安装应用';
+        installButton.className = 'install-btn';
+        installButton.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+            z-index: 1000;
+            display: none;
+            transition: all 0.3s ease;
+        `;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installButton.style.display = 'block';
+            document.body.appendChild(installButton);
+        });
+        
+        installButton.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    installButton.style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        });
+        
+        // 检测是否已安装
+        window.addEventListener('appinstalled', () => {
+            installButton.style.display = 'none';
+            console.log('PWA已安装');
+        });
+    </script>
+</body>
+</html>
