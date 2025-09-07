@@ -1156,25 +1156,45 @@ class FabricManager {
         try {
             // 模拟进度更新
             this.updateProgress(progressFill, progressText, 10, '正在加载OCR引擎...');
+            console.log('开始OCR识别流程');
             
             // 加载Tesseract.js
             if (!window.Tesseract) {
+                console.log('Tesseract.js未加载，开始加载...');
                 await this.loadTesseract();
+                console.log('Tesseract.js加载完成');
+            } else {
+                console.log('Tesseract.js已存在');
             }
             
             this.updateProgress(progressFill, progressText, 30, '正在分析图片...');
             
             // 执行OCR识别
-            console.log('开始OCR识别，图片源:', this.currentBillImage);
+            console.log('开始OCR识别，图片源类型:', typeof this.currentBillImage);
+            console.log('图片源长度:', this.currentBillImage ? this.currentBillImage.length : 'null');
+            
             const result = await this.performOCR(this.currentBillImage);
-            console.log('OCR识别完成，置信度:', result.data.confidence);
+            console.log('OCR识别完成');
+            console.log('置信度:', result.data.confidence);
+            console.log('识别文本长度:', result.data.text.length);
+            console.log('识别文本预览:', result.data.text.substring(0, 100));
             
             this.updateProgress(progressFill, progressText, 80, '正在提取信息...');
             
             // 检查识别结果质量
             if (result.data.confidence < 30) {
                 console.warn('OCR识别置信度较低:', result.data.confidence);
-                this.showAlert(`识别置信度较低(${result.data.confidence.toFixed(1)}%)，建议使用更清晰的图片`, 'warning');
+                this.showAlert(`识别置信度较低(${result.data.confidence.toFixed(1)}%)，建议使用更清晰的图片。\n\n调试提示：请检查图片是否清晰、文字是否完整、光线是否充足。`, 'warning');
+            } else if (result.data.confidence > 80) {
+                console.log('OCR识别质量良好:', result.data.confidence);
+                this.showAlert(`识别效果良好(${result.data.confidence.toFixed(1)}%)`, 'success');
+            }
+            
+            // 检查识别文本是否为空
+            if (!result.data.text || result.data.text.trim().length === 0) {
+                console.warn('OCR识别结果为空');
+                this.showAlert('未识别到任何文字，请检查图片质量或尝试其他图片', 'error');
+                return;
             }
             
             // 解析识别结果
@@ -1214,17 +1234,55 @@ class FabricManager {
 
     // 执行OCR识别
     async performOCR(imageSource) {
-        const worker = await Tesseract.createWorker('chi_sim+eng');
-        
-        // 设置识别参数以提高准确性
-        await worker.setParameters({
-            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz一二三四五六七八九十百千万元米厘分布料棉丝麻毛化纤红蓝绿黄黑白灰紫粉橙棕公司厂店',
-            tessedit_pageseg_mode: Tesseract.PSM.AUTO
-        });
-        
-        const result = await worker.recognize(imageSource);
-        await worker.terminate();
-        return result;
+        let worker = null;
+        try {
+            console.log('创建OCR Worker...');
+            worker = await Tesseract.createWorker('chi_sim+eng');
+            console.log('OCR Worker创建成功');
+            
+            // 设置识别参数以提高准确性
+            console.log('设置OCR参数...');
+            await worker.setParameters({
+                tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz一二三四五六七八九十百千万元米厘分布料棉丝麻毛化纤红蓝绿黄黑白灰紫粉橙棕公司厂店',
+                tessedit_pageseg_mode: Tesseract.PSM.AUTO
+            });
+            console.log('OCR参数设置完成');
+            
+            console.log('开始识别图片...');
+            const result = await worker.recognize(imageSource);
+            console.log('图片识别完成');
+            
+            // 验证结果
+            if (!result || !result.data) {
+                throw new Error('OCR识别返回无效结果');
+            }
+            
+            if (typeof result.data.confidence !== 'number') {
+                console.warn('置信度数据异常，设置默认值');
+                result.data.confidence = 0;
+            }
+            
+            if (typeof result.data.text !== 'string') {
+                console.warn('文本数据异常，设置默认值');
+                result.data.text = '';
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('OCR识别过程中出错:', error);
+            throw new Error(`OCR识别失败: ${error.message}`);
+        } finally {
+            if (worker) {
+                try {
+                    console.log('终止OCR Worker...');
+                    await worker.terminate();
+                    console.log('OCR Worker已终止');
+                } catch (terminateError) {
+                    console.warn('终止OCR Worker时出错:', terminateError);
+                }
+            }
+        }
     }
 
     // 更新进度
