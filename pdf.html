@@ -19,6 +19,8 @@
     
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -32,6 +34,7 @@
         <nav class="tab-nav">
             <button class="tab-btn active" data-tab="inventory">库存管理</button>
             <button class="tab-btn" data-tab="outbound">出库管理</button>
+            <button class="tab-btn" data-tab="bill-recognition">账单识别</button>
         </nav>
 
         <!-- 主要内容区域 -->
@@ -301,6 +304,172 @@
                 </section>
             </div>
         </main>
+
+        <!-- 账单识别标签内容 -->
+        <div id="bill-recognition-tab" class="tab-content" style="display: none;">
+            <!-- 左侧：图片上传和识别 -->
+            <section class="input-section">
+                <div class="card">
+                    <h2><i class="fas fa-camera"></i> 账单图片识别</h2>
+                    <div class="bill-upload-area">
+                        <div class="upload-zone" id="uploadZone">
+                            <div class="upload-content">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>点击或拖拽上传账单图片</p>
+                                <p class="upload-hint">支持 JPG、PNG、JPEG、PDF 格式</p>
+                            </div>
+                            <input type="file" id="billImageInput" accept="image/*,application/pdf" style="display: none;">
+                        </div>
+                        
+                        <div class="image-preview" id="imagePreview" style="display: none;">
+                            <img id="previewImage" alt="账单预览">
+                            <div class="preview-actions">
+                                <button type="button" class="btn btn-secondary" id="reuploadBtn">
+                                    <i class="fas fa-redo"></i> 重新上传
+                                </button>
+                                <button type="button" class="btn btn-primary" id="recognizeBtn">
+                                    <i class="fas fa-eye"></i> 开始识别
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="recognition-progress" id="recognitionProgress" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <p id="progressText">正在识别中...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 识别结果编辑 -->
+                <div class="card" id="recognitionResult" style="display: none;">
+                    <h2><i class="fas fa-edit"></i> 识别结果</h2>
+                    <form id="billForm" class="fabric-form">
+                        <div class="form-group">
+                            <label for="billFabricName">布料名称</label>
+                            <input type="text" id="billFabricName" name="fabricName" required>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="billFabricType">布料类型</label>
+                                <select id="billFabricType" name="fabricType" required>
+                                    <option value="">请选择类型</option>
+                                    <option value="棉布">棉布</option>
+                                    <option value="丝绸">丝绸</option>
+                                    <option value="麻布">麻布</option>
+                                    <option value="毛料">毛料</option>
+                                    <option value="化纤">化纤</option>
+                                    <option value="混纺">混纺</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="billFabricColor">颜色</label>
+                                <input type="text" id="billFabricColor" name="fabricColor" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="billFabricWidth">幅宽 (cm)</label>
+                                <input type="number" id="billFabricWidth" name="fabricWidth" min="0" step="0.1" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="billFabricLength">长度 (m)</label>
+                                <input type="number" id="billFabricLength" name="fabricLength" min="0" step="0.1" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="billFabricPrice">单价 (元/米)</label>
+                                <input type="number" id="billFabricPrice" name="fabricPrice" min="0" step="0.01" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="billFabricSupplier">供应商</label>
+                                <input type="text" id="billFabricSupplier" name="fabricSupplier">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="billFabricNotes">备注</label>
+                            <textarea id="billFabricNotes" name="fabricNotes" rows="3"></textarea>
+                        </div>
+                        
+                        <div class="form-actions">
+                            <button type="button" class="btn btn-secondary" id="resetBillForm">
+                                <i class="fas fa-undo"></i> 重置
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 保存到库存
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+            
+            <!-- 右侧：识别历史和统计 -->
+            <section class="stats-section">
+                <!-- 识别统计卡片 -->
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="totalRecognitions">0</h3>
+                            <p>总识别次数</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="successfulRecognitions">0</h3>
+                            <p>成功识别</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="recognitionAccuracy">0%</h3>
+                            <p>识别准确率</p>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar-day"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayRecognitions">0</h3>
+                            <p>今日识别</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 识别历史 -->
+                <div class="card">
+                    <h2><i class="fas fa-history"></i> 识别历史</h2>
+                    <div class="recognition-history" id="recognitionHistory">
+                        <div class="empty-state">
+                            <i class="fas fa-camera"></i>
+                            <p>暂无识别记录</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
 
         <!-- 库存管理标签内容 -->
         <div id="inventory-tab" class="tab-content">

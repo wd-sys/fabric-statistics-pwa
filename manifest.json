@@ -2,12 +2,12 @@
   "name": "布料统计软件",
   "short_name": "布料统计",
   "description": "专业的布料库存管理和统计软件",
-  "start_url": "./pdf.html",
+  "start_url": "https://wd-sys.github.io/fabric-statistics-pwa/pdf.html",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196F3",
   "orientation": "portrait-primary",
-  "scope": "./",
+  "scope": "https://wd-sys.github.io/fabric-statistics-pwa/",
   "icons": [
     {
       "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9IiMyMTk2RjMiLz4KPHN2ZyB4PSI0OCIgeT0iNDgiIHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIj4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTMgM0gyMVYyMUgzVjNaIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KPHN2ZyB4PSI2IiB5PSI2IiB3aWR0aD0iMTIiIGhlaWdodD0iMTIiPgo8cGF0aCBkPSJNMiAySDEwVjEwSDJWMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0xMiAySDIwVjEwSDEyVjJaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMiAxMkgxMFYyMEgyVjEyWiIgZmlsbD0id2hpdGUiLz4KPHN2Zz4KPC9zdmc+Cjwvc3ZnPgo8L3N2Zz4K",

@@ -1,9 +1,9 @@
 const CACHE_NAME = 'fabric-stats-v1';
 const urlsToCache = [
-  './pdf.html',
-  './styles.css',
-  './script.js',
-  './manifest.json'
+  'https://wd-sys.github.io/fabric-statistics-pwa/pdf.html',
+  'https://wd-sys.github.io/fabric-statistics-pwa/styles.css',
+  'https://wd-sys.github.io/fabric-statistics-pwa/script.js',
+  'https://wd-sys.github.io/fabric-statistics-pwa/manifest.json'
 ];
 
 // 安装Service Worker
@@ -45,7 +45,7 @@ self.addEventListener('fetch', event => {
           return response;
         }).catch(() => {
           // 网络失败时，尝试从缓存返回
-          return caches.match('./pdf.html');
+          return caches.match('https://wd-sys.github.io/fabric-statistics-pwa/pdf.html');
         });
       })
   );
@@ -71,8 +71,8 @@ self.addEventListener('activate', event => {
 self.addEventListener('push', event => {
   const options = {
     body: event.data ? event.data.text() : '布料统计软件有新的更新',
-    icon: './manifest.json',
-    badge: './manifest.json',
+    icon: 'https://wd-sys.github.io/fabric-statistics-pwa/manifest.json',
+    badge: 'https://wd-sys.github.io/fabric-statistics-pwa/manifest.json',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),

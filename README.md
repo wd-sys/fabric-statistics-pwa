@@ -59,7 +59,7 @@ cd 布料统计软件
 python3 -m http.server 8000
 
 # 在浏览器中访问
-http://localhost:8000
+https://wd-sys.github.io/fabric-statistics-pwa/pdf.html
 ```
 
 ### 2. 添加布料

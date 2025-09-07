@@ -15,6 +15,7 @@ class FabricManager {
         this.initTabs();
         this.updateDisplay();
         this.initMobileOptimizations();
+        this.displayRecognitionStats();
     }
 
     // 绑定事件
@@ -97,6 +98,9 @@ class FabricManager {
         document.querySelector('.close').addEventListener('click', () => {
             this.closeModal();
         });
+
+        // 账单识别相关事件
+        this.bindBillRecognitionEvents();
 
         window.addEventListener('click', (e) => {
             if (e.target === document.getElementById('editModal')) {
@@ -964,6 +968,414 @@ class FabricManager {
     initMobileOptimizations() {
         this.initTableScrollIndicator();
         this.initTouchFeedback();
+    }
+
+    // 绑定账单识别事件
+    bindBillRecognitionEvents() {
+        const uploadZone = document.getElementById('uploadZone');
+        const billImageInput = document.getElementById('billImageInput');
+        const reuploadBtn = document.getElementById('reuploadBtn');
+        const recognizeBtn = document.getElementById('recognizeBtn');
+        const billForm = document.getElementById('billForm');
+        const resetBillForm = document.getElementById('resetBillForm');
+
+        // 点击上传区域
+        uploadZone.addEventListener('click', () => {
+            billImageInput.click();
+        });
+
+        // 文件选择
+        billImageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                this.handleFileUpload(file);
+            }
+        });
+
+        // 拖拽上传
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && (file.type.startsWith('image/') || file.type === 'application/pdf')) {
+                this.handleFileUpload(file);
+            }
+        });
+
+        // 重新上传
+        reuploadBtn.addEventListener('click', () => {
+            this.resetImageUpload();
+        });
+
+        // 开始识别
+        recognizeBtn.addEventListener('click', () => {
+            this.startRecognition();
+        });
+
+        // 账单表单提交
+        billForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveBillRecognitionResult();
+        });
+
+        // 重置表单
+        resetBillForm.addEventListener('click', () => {
+            this.resetBillForm();
+        });
+    }
+
+    // 处理文件上传（图片或PDF）
+    handleFileUpload(file) {
+        // 验证文件类型
+        if (!file.type.startsWith('image/') && file.type !== 'application/pdf') {
+            this.showAlert('请选择图片文件或PDF文件', 'error');
+            return;
+        }
+
+        // 验证文件大小 (最大20MB)
+        if (file.size > 20 * 1024 * 1024) {
+            this.showAlert('文件过大，请选择小于20MB的文件', 'error');
+            return;
+        }
+
+        this.currentBillFile = file;
+        
+        if (file.type === 'application/pdf') {
+            this.handlePDFUpload(file);
+        } else {
+            this.handleImageUpload(file);
+        }
+    }
+
+    // 处理图片上传
+    handleImageUpload(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.displayImagePreview(e.target.result);
+            this.currentBillImage = file;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    // 处理PDF上传
+    async handlePDFUpload(file) {
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            
+            // 获取第一页
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1.5 });
+            
+            // 创建canvas
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            
+            // 渲染PDF页面到canvas
+            await page.render({
+                canvasContext: context,
+                viewport: viewport
+            }).promise;
+            
+            // 将canvas转换为图片数据
+            const imageDataUrl = canvas.toDataURL('image/png');
+            this.displayImagePreview(imageDataUrl);
+            
+            // 将canvas转换为blob用于OCR
+            canvas.toBlob((blob) => {
+                this.currentBillImage = blob;
+            }, 'image/png');
+            
+        } catch (error) {
+            console.error('PDF处理失败:', error);
+            this.showAlert('PDF文件处理失败，请重试', 'error');
+        }
+    }
+
+    // 显示图片预览
+    displayImagePreview(imageSrc) {
+        const uploadZone = document.getElementById('uploadZone');
+        const imagePreview = document.getElementById('imagePreview');
+        const previewImage = document.getElementById('previewImage');
+
+        uploadZone.style.display = 'none';
+        previewImage.src = imageSrc;
+        imagePreview.style.display = 'block';
+    }
+
+    // 重置文件上传
+    resetImageUpload() {
+        const uploadZone = document.getElementById('uploadZone');
+        const imagePreview = document.getElementById('imagePreview');
+        const billImageInput = document.getElementById('billImageInput');
+        const recognitionProgress = document.getElementById('recognitionProgress');
+        const recognitionResult = document.getElementById('recognitionResult');
+
+        uploadZone.style.display = 'block';
+        imagePreview.style.display = 'none';
+        recognitionProgress.style.display = 'none';
+        recognitionResult.style.display = 'none';
+        billImageInput.value = '';
+        this.currentBillImage = null;
+        this.currentBillFile = null;
+    }
+
+    // 开始识别
+    async startRecognition() {
+        if (!this.currentBillImage && !this.currentBillFile) {
+            this.showAlert('请先上传文件', 'error');
+            return;
+        }
+        
+        // 如果是PDF文件但还没有转换为图片，等待转换完成
+        if (this.currentBillFile && this.currentBillFile.type === 'application/pdf' && !this.currentBillImage) {
+            this.showAlert('PDF文件正在处理中，请稍候...', 'info');
+            return;
+        }
+
+        const imagePreview = document.getElementById('imagePreview');
+        const recognitionProgress = document.getElementById('recognitionProgress');
+        const progressFill = document.getElementById('progressFill');
+        const progressText = document.getElementById('progressText');
+
+        // 显示进度条
+        imagePreview.style.display = 'none';
+        recognitionProgress.style.display = 'block';
+
+        try {
+            // 模拟进度更新
+            this.updateProgress(progressFill, progressText, 10, '正在加载OCR引擎...');
+            
+            // 加载Tesseract.js
+            if (!window.Tesseract) {
+                await this.loadTesseract();
+            }
+            
+            this.updateProgress(progressFill, progressText, 30, '正在分析图片...');
+            
+            // 执行OCR识别
+            const result = await this.performOCR(this.currentBillImage);
+            
+            this.updateProgress(progressFill, progressText, 80, '正在提取信息...');
+            
+            // 解析识别结果
+            const extractedData = this.extractBillInfo(result.data.text);
+            
+            this.updateProgress(progressFill, progressText, 100, '识别完成！');
+            
+            // 显示识别结果
+            setTimeout(() => {
+                this.displayRecognitionResult(extractedData);
+                this.updateRecognitionStats(true);
+            }, 500);
+            
+        } catch (error) {
+            console.error('识别失败:', error);
+            this.showAlert('识别失败，请重试', 'error');
+            this.updateRecognitionStats(false);
+            this.resetImageUpload();
+        }
+    }
+
+    // 加载Tesseract.js
+    async loadTesseract() {
+        return new Promise((resolve, reject) => {
+            if (window.Tesseract) {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // 执行OCR识别
+    async performOCR(imageFile) {
+        const worker = await Tesseract.createWorker('chi_sim+eng');
+        const result = await worker.recognize(imageFile);
+        await worker.terminate();
+        return result;
+    }
+
+    // 更新进度
+    updateProgress(progressFill, progressText, percentage, text) {
+        progressFill.style.width = percentage + '%';
+        progressText.textContent = text;
+    }
+
+    // 提取账单信息
+    extractBillInfo(text) {
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+        const extractedData = {
+            fabricName: '',
+            fabricType: '',
+            fabricColor: '',
+            fabricWidth: '',
+            fabricLength: '',
+            fabricPrice: '',
+            fabricSupplier: '',
+            fabricNotes: '从账单识别获取'
+        };
+
+        // 简单的信息提取逻辑
+        for (const line of lines) {
+            // 提取布料名称（通常包含"布"、"料"等关键词）
+            if ((line.includes('布') || line.includes('料')) && !extractedData.fabricName) {
+                extractedData.fabricName = line;
+            }
+            
+            // 提取颜色信息
+            const colors = ['红', '蓝', '绿', '黄', '黑', '白', '灰', '紫', '粉', '橙', '棕'];
+            for (const color of colors) {
+                if (line.includes(color) && !extractedData.fabricColor) {
+                    extractedData.fabricColor = color;
+                    break;
+                }
+            }
+            
+            // 提取数字信息（可能是尺寸或价格）
+            const numbers = line.match(/\d+(\.\d+)?/g);
+            if (numbers) {
+                // 简单逻辑：较大的数字可能是幅宽，较小的可能是长度或价格
+                for (const num of numbers) {
+                    const value = parseFloat(num);
+                    if (value > 50 && value < 300 && !extractedData.fabricWidth) {
+                        extractedData.fabricWidth = value;
+                    } else if (value > 0 && value < 50 && !extractedData.fabricLength) {
+                        extractedData.fabricLength = value;
+                    } else if (value > 0 && value < 1000 && !extractedData.fabricPrice) {
+                        extractedData.fabricPrice = value;
+                    }
+                }
+            }
+            
+            // 提取供应商信息
+            if ((line.includes('公司') || line.includes('厂') || line.includes('店')) && !extractedData.fabricSupplier) {
+                extractedData.fabricSupplier = line;
+            }
+        }
+
+        // 根据名称推断类型
+        if (extractedData.fabricName) {
+            const name = extractedData.fabricName.toLowerCase();
+            if (name.includes('棉')) extractedData.fabricType = '棉布';
+            else if (name.includes('丝')) extractedData.fabricType = '丝绸';
+            else if (name.includes('麻')) extractedData.fabricType = '麻布';
+            else if (name.includes('毛')) extractedData.fabricType = '毛料';
+            else if (name.includes('化纤') || name.includes('聚酯')) extractedData.fabricType = '化纤';
+            else extractedData.fabricType = '其他';
+        }
+
+        return extractedData;
+    }
+
+    // 显示识别结果
+    displayRecognitionResult(data) {
+        const recognitionProgress = document.getElementById('recognitionProgress');
+        const recognitionResult = document.getElementById('recognitionResult');
+        
+        // 填充表单
+        document.getElementById('billFabricName').value = data.fabricName || '';
+        document.getElementById('billFabricType').value = data.fabricType || '';
+        document.getElementById('billFabricColor').value = data.fabricColor || '';
+        document.getElementById('billFabricWidth').value = data.fabricWidth || '';
+        document.getElementById('billFabricLength').value = data.fabricLength || '';
+        document.getElementById('billFabricPrice').value = data.fabricPrice || '';
+        document.getElementById('billFabricSupplier').value = data.fabricSupplier || '';
+        document.getElementById('billFabricNotes').value = data.fabricNotes || '';
+        
+        // 显示结果表单
+        recognitionProgress.style.display = 'none';
+        recognitionResult.style.display = 'block';
+    }
+
+    // 保存账单识别结果
+    saveBillRecognitionResult() {
+        const formData = new FormData(document.getElementById('billForm'));
+        const fabric = {
+            id: Date.now().toString(),
+            name: formData.get('fabricName'),
+            type: formData.get('fabricType'),
+            color: formData.get('fabricColor'),
+            width: parseFloat(formData.get('fabricWidth')),
+            length: parseFloat(formData.get('fabricLength')),
+            price: parseFloat(formData.get('fabricPrice')),
+            supplier: formData.get('fabricSupplier'),
+            notes: formData.get('fabricNotes'),
+            createdAt: new Date().toISOString(),
+            source: 'bill_recognition'
+        };
+
+        // 验证数据
+        const validation = this.validateFabric(fabric);
+        if (!validation.isValid) {
+            this.showAlert(validation.message, 'error');
+            return;
+        }
+
+        // 添加到库存
+        this.fabrics.push(fabric);
+        this.saveData();
+        this.updateDisplay();
+        
+        // 重置界面
+        this.resetImageUpload();
+        this.resetBillForm();
+        
+        this.showAlert('账单识别结果已保存到库存！', 'success');
+    }
+
+    // 重置账单表单
+    resetBillForm() {
+        document.getElementById('billForm').reset();
+    }
+
+    // 更新识别统计
+    updateRecognitionStats(success) {
+        const stats = JSON.parse(localStorage.getItem('recognitionStats') || '{}');
+        const today = new Date().toDateString();
+        
+        stats.totalRecognitions = (stats.totalRecognitions || 0) + 1;
+        if (success) {
+            stats.successfulRecognitions = (stats.successfulRecognitions || 0) + 1;
+        }
+        
+        stats.todayRecognitions = stats.todayRecognitions || {};
+        stats.todayRecognitions[today] = (stats.todayRecognitions[today] || 0) + 1;
+        
+        localStorage.setItem('recognitionStats', JSON.stringify(stats));
+        this.displayRecognitionStats();
+    }
+
+    // 显示识别统计
+    displayRecognitionStats() {
+        const stats = JSON.parse(localStorage.getItem('recognitionStats') || '{}');
+        const today = new Date().toDateString();
+        
+        const totalRecognitions = stats.totalRecognitions || 0;
+        const successfulRecognitions = stats.successfulRecognitions || 0;
+        const todayRecognitions = (stats.todayRecognitions && stats.todayRecognitions[today]) || 0;
+        const accuracy = totalRecognitions > 0 ? Math.round((successfulRecognitions / totalRecognitions) * 100) : 0;
+        
+        document.getElementById('totalRecognitions').textContent = totalRecognitions;
+        document.getElementById('successfulRecognitions').textContent = successfulRecognitions;
+        document.getElementById('recognitionAccuracy').textContent = accuracy + '%';
+        document.getElementById('todayRecognitions').textContent = todayRecognitions;
     }
 
     // 初始化表格滚动指示器
