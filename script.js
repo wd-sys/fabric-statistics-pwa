@@ -1165,9 +1165,17 @@ class FabricManager {
             this.updateProgress(progressFill, progressText, 30, '正在分析图片...');
             
             // 执行OCR识别
+            console.log('开始OCR识别，图片源:', this.currentBillImage);
             const result = await this.performOCR(this.currentBillImage);
+            console.log('OCR识别完成，置信度:', result.data.confidence);
             
             this.updateProgress(progressFill, progressText, 80, '正在提取信息...');
+            
+            // 检查识别结果质量
+            if (result.data.confidence < 30) {
+                console.warn('OCR识别置信度较低:', result.data.confidence);
+                this.showAlert(`识别置信度较低(${result.data.confidence.toFixed(1)}%)，建议使用更清晰的图片`, 'warning');
+            }
             
             // 解析识别结果
             const extractedData = this.extractBillInfo(result.data.text);
@@ -1205,9 +1213,16 @@ class FabricManager {
     }
 
     // 执行OCR识别
-    async performOCR(imageFile) {
+    async performOCR(imageSource) {
         const worker = await Tesseract.createWorker('chi_sim+eng');
-        const result = await worker.recognize(imageFile);
+        
+        // 设置识别参数以提高准确性
+        await worker.setParameters({
+            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz一二三四五六七八九十百千万元米厘分布料棉丝麻毛化纤红蓝绿黄黑白灰紫粉橙棕公司厂店',
+            tessedit_pageseg_mode: Tesseract.PSM.AUTO
+        });
+        
+        const result = await worker.recognize(imageSource);
         await worker.terminate();
         return result;
     }
@@ -1220,7 +1235,25 @@ class FabricManager {
 
     // 提取账单信息
     extractBillInfo(text) {
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line);
+        console.log('OCR识别原始文本:', text);
+        
+        if (!text || text.trim().length === 0) {
+            console.warn('OCR识别结果为空');
+            return {
+                fabricName: '未识别',
+                fabricType: '其他',
+                fabricColor: '',
+                fabricWidth: '',
+                fabricLength: '',
+                fabricPrice: '',
+                fabricSupplier: '',
+                fabricNotes: 'OCR识别结果为空，请检查图片质量'
+            };
+        }
+        
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+        console.log('处理后的文本行:', lines);
+        
         const extractedData = {
             fabricName: '',
             fabricType: '',
@@ -1229,58 +1262,90 @@ class FabricManager {
             fabricLength: '',
             fabricPrice: '',
             fabricSupplier: '',
-            fabricNotes: '从账单识别获取'
+            fabricNotes: `从账单识别获取 (共识别${lines.length}行文本)`
         };
 
-        // 简单的信息提取逻辑
-        for (const line of lines) {
-            // 提取布料名称（通常包含"布"、"料"等关键词）
-            if ((line.includes('布') || line.includes('料')) && !extractedData.fabricName) {
+        // 改进的信息提取逻辑
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const lowerLine = line.toLowerCase();
+            
+            // 提取布料名称（更宽泛的匹配）
+            if ((line.includes('布') || line.includes('料') || line.includes('纺') || 
+                 line.includes('织') || line.includes('绸') || line.includes('麻') || 
+                 line.includes('棉') || line.includes('毛')) && !extractedData.fabricName) {
                 extractedData.fabricName = line;
+                console.log('识别到布料名称:', line);
             }
             
-            // 提取颜色信息
-            const colors = ['红', '蓝', '绿', '黄', '黑', '白', '灰', '紫', '粉', '橙', '棕'];
+            // 提取颜色信息（扩展颜色列表）
+            const colors = ['红', '蓝', '绿', '黄', '黑', '白', '灰', '紫', '粉', '橙', '棕', 
+                          '深', '浅', '亮', '暗', '米', '咖', '银', '金', '青', '蓝绿', '玫红'];
             for (const color of colors) {
                 if (line.includes(color) && !extractedData.fabricColor) {
                     extractedData.fabricColor = color;
+                    console.log('识别到颜色:', color);
                     break;
                 }
             }
             
-            // 提取数字信息（可能是尺寸或价格）
+            // 改进的数字提取逻辑
             const numbers = line.match(/\d+(\.\d+)?/g);
             if (numbers) {
-                // 简单逻辑：较大的数字可能是幅宽，较小的可能是长度或价格
+                console.log(`第${i+1}行发现数字:`, numbers);
                 for (const num of numbers) {
                     const value = parseFloat(num);
-                    if (value > 50 && value < 300 && !extractedData.fabricWidth) {
-                        extractedData.fabricWidth = value;
-                    } else if (value > 0 && value < 50 && !extractedData.fabricLength) {
-                        extractedData.fabricLength = value;
-                    } else if (value > 0 && value < 1000 && !extractedData.fabricPrice) {
-                        extractedData.fabricPrice = value;
+                    
+                    // 检查上下文来判断数字含义
+                    if (line.includes('宽') || line.includes('幅') || (value >= 100 && value <= 300)) {
+                        if (!extractedData.fabricWidth) {
+                            extractedData.fabricWidth = value;
+                            console.log('识别到宽度:', value);
+                        }
+                    } else if (line.includes('长') || line.includes('米') || (value > 0 && value <= 100)) {
+                        if (!extractedData.fabricLength) {
+                            extractedData.fabricLength = value;
+                            console.log('识别到长度:', value);
+                        }
+                    } else if (line.includes('价') || line.includes('元') || line.includes('￥') || line.includes('$')) {
+                        if (!extractedData.fabricPrice) {
+                            extractedData.fabricPrice = value;
+                            console.log('识别到价格:', value);
+                        }
                     }
                 }
             }
             
-            // 提取供应商信息
-            if ((line.includes('公司') || line.includes('厂') || line.includes('店')) && !extractedData.fabricSupplier) {
+            // 提取供应商信息（扩展关键词）
+            if ((line.includes('公司') || line.includes('厂') || line.includes('店') || 
+                 line.includes('商') || line.includes('贸易') || line.includes('纺织')) && 
+                !extractedData.fabricSupplier) {
                 extractedData.fabricSupplier = line;
+                console.log('识别到供应商:', line);
             }
         }
 
         // 根据名称推断类型
         if (extractedData.fabricName) {
-            const name = extractedData.fabricName.toLowerCase();
+            const name = extractedData.fabricName;
             if (name.includes('棉')) extractedData.fabricType = '棉布';
-            else if (name.includes('丝')) extractedData.fabricType = '丝绸';
+            else if (name.includes('丝') || name.includes('绸')) extractedData.fabricType = '丝绸';
             else if (name.includes('麻')) extractedData.fabricType = '麻布';
             else if (name.includes('毛')) extractedData.fabricType = '毛料';
-            else if (name.includes('化纤') || name.includes('聚酯')) extractedData.fabricType = '化纤';
+            else if (name.includes('化纤') || name.includes('聚酯') || name.includes('涤')) extractedData.fabricType = '化纤';
+            else if (name.includes('牛仔')) extractedData.fabricType = '牛仔布';
+            else if (name.includes('雪纺')) extractedData.fabricType = '雪纺';
             else extractedData.fabricType = '其他';
+        } else {
+            extractedData.fabricType = '其他';
+        }
+        
+        // 如果没有识别到任何有用信息，设置默认值
+        if (!extractedData.fabricName) {
+            extractedData.fabricName = '未识别的布料';
         }
 
+        console.log('最终提取结果:', extractedData);
         return extractedData;
     }
 
